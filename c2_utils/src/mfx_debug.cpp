@@ -36,7 +36,7 @@
 #if MFX_DEBUG_FILE == MFX_DEBUG_YES
 static FILE* GetDbgFile()
 {
-    static FILE* dbg_file = fopen(MFX_DEBUG_FILE_NAME, "w");
+    static FILE* dbg_file = fopen(MFX_DEBUG_FILE_NAME, "a+");
     return dbg_file;
 }
 #endif

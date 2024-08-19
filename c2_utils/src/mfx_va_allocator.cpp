@@ -213,6 +213,7 @@ mfxStatus MfxVaFrameAllocator::AllocFrames(mfxFrameAllocRequest *request, mfxFra
                 request->Info.Width, request->Info.Height,
                 surfaces.get(), surfaces_count, &attrib, 1);
             if (VA_STATUS_SUCCESS != va_res) {
+                MFX_DEBUG_TRACE_U32(va_res);
                 mfx_res = va_to_mfx_status(va_res);
                 break;
             }
@@ -249,8 +250,9 @@ mfxStatus MfxVaFrameAllocator::AllocFrames(mfxFrameAllocRequest *request, mfxFra
             mids[i] = &va_mids[i];
         }
 
-        surfaces.release();
-        va_mids.release();
+        // ???
+        //surfaces.release();
+        //va_mids.release();
         response->mids = mids.release();
         response->NumFrameActual = surfaces_count;
 
@@ -432,6 +434,10 @@ mfxStatus MfxVaFrameAllocator::GetFrameHDL(mfxMemId mid, mfxHDL *handle)
     std::lock_guard<std::mutex> lock(m_mutex);
 
     VaMemId* va_mid = (VaMemId*)mid;
+
+    MFX_DEBUG_TRACE_P(handle);
+    MFX_DEBUG_TRACE_P(va_mid);
+    MFX_DEBUG_TRACE_P(va_mid->surface_);
 
     if (!handle || !va_mid || !(va_mid->surface_)) return MFX_ERR_INVALID_HANDLE;
 

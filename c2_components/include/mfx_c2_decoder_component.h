@@ -29,6 +29,7 @@
 #include "mfx_frame_pool_allocator.h"
 #include "mfx_gralloc_instance.h"
 #include "mfx_c2_setters.h"
+#include "mfx_c2_vpp_wrapp.h"
 #include <cutils/properties.h>
 
 class MfxC2DecoderComponent : public MfxC2Component
@@ -162,6 +163,8 @@ private:
 
     void UpdateColorAspectsFromBitstream(const mfxExtVideoSignalInfo &signalInfo);
 
+    mfxStatus InitVPP();
+
 private:
     DecoderType m_decoderType;
 
@@ -245,6 +248,8 @@ private:
 
     unsigned int m_uOutputDelay = 8u;
     unsigned int m_uInputDelay = 0u;
+
+    MfxC2VppWrapp m_vpp;
 
 #if MFX_DEBUG_DUMP_FRAME == MFX_DEBUG_YES
     int m_count = 0;

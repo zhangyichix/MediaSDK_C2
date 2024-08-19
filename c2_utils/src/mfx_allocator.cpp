@@ -19,6 +19,10 @@
 // SOFTWARE.
 
 #include "mfx_allocator.h"
+#include "mfx_debug.h"
+
+#undef MFX_DEBUG_MODULE_NAME
+#define MFX_DEBUG_MODULE_NAME "mfx_allocator"
 
 inline MfxFrameAllocator* WrapperGetAllocator(mfxHDL pthis)
 {
@@ -52,6 +56,7 @@ static mfxStatus WrapperFree(mfxHDL pthis, mfxFrameAllocResponse *response)
 
 static mfxStatus WrapperGetHdl(mfxHDL pthis, mfxMemId mid, mfxHDL *handle)
 {
+    MFX_DEBUG_TRACE_FUNC;
     MfxFrameAllocator* a = WrapperGetAllocator(pthis);
     return (a) ? a->GetFrameHDL(mid, handle) : MFX_ERR_INVALID_HANDLE;
 }

@@ -35,7 +35,8 @@ enum MfxC2Conversion
 {
     CONVERT_NONE,
     NV12_TO_ARGB,
-    ARGB_TO_NV12
+    ARGB_TO_NV12,
+    P010_TO_NV12
 };
 
 struct MfxC2VppWrappParam
@@ -47,8 +48,8 @@ struct MfxC2VppWrappParam
 #endif
     mfxFrameInfo      *frame_info;
     std::shared_ptr<MfxFrameAllocator> allocator;
-
-    MfxC2Conversion   conversion;
+    std::shared_ptr<MfxFrameConverter> converter;
+    bool videoMemory;
 };
 
 class MfxC2VppWrapp
@@ -57,13 +58,16 @@ public:
     MfxC2VppWrapp(void);
     ~MfxC2VppWrapp(void);
 
-    mfxStatus Init(MfxC2VppWrappParam *param);
+    mfxStatus Init(MfxC2VppWrappParam *param, MfxC2Conversion conversion);
     mfxStatus Close(void);
+    MfxC2Conversion GetConversion() { return m_conversion; }
     mfxStatus ProcessFrameVpp(mfxFrameSurface1 *in_srf, mfxFrameSurface1 **out_srf);
+    void SetC2Allocator(std::shared_ptr<C2BlockPool> c2Allocator) { m_c2Allocator = c2Allocator; }
 
 protected:
-    mfxStatus FillVppParams(mfxFrameInfo *frame_info, MfxC2Conversion conversion);
+    mfxStatus FillVppParams(mfxFrameInfo *frame_info);
     mfxStatus AllocateOneSurface(void);
+    mfxFrameSurface1* GetFreeSurface(void);
 
     MFXVideoVPP *m_pVpp;
 #ifdef USE_ONEVPL
@@ -73,10 +77,12 @@ protected:
 #endif
     mfxVideoParam m_vppParam;
     std::shared_ptr<MfxFrameAllocator> m_allocator;
+    std::shared_ptr<MfxFrameConverter> m_converter;
+    std::shared_ptr<C2BlockPool> m_c2Allocator;
+    bool m_videoMemory;
 
-    mfxFrameAllocResponse m_responses[VPP_MAX_SRF_NUM];
-    mfxFrameSurface1 m_vppSrf[VPP_MAX_SRF_NUM];
-    mfxU32 m_uVppSurfaceCount;
+    std::vector<std::shared_ptr<mfxFrameSurface1>> m_vppSrf;
+    MfxC2Conversion m_conversion;
 
 private:
     MFX_CLASS_NO_COPY(MfxC2VppWrapp)

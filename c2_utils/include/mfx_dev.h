@@ -42,6 +42,8 @@ public:
 
     virtual mfxStatus Close() = 0;
 
+    virtual std::shared_ptr<MfxFrameAllocator> GetVaAllocator() = 0;
+
     virtual std::shared_ptr<MfxFrameAllocator> GetFrameAllocator() = 0;
 
     virtual std::shared_ptr<MfxFrameConverter> GetFrameConverter() = 0;

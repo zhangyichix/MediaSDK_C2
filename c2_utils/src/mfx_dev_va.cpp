@@ -81,6 +81,11 @@ mfxStatus MfxDevVa::Init()
                     m_vaPoolAllocator.reset(new (std::nothrow)MfxVaFramePoolAllocator(m_vaDisplay));
                     if (nullptr == m_vaPoolAllocator) mfx_res = MFX_ERR_MEMORY_ALLOC;
                 }
+                // for vpp
+                if (!m_vaAllocator) {
+                    m_vaAllocator.reset(new (std::nothrow)MfxVaFrameAllocator(m_vaDisplay));
+                    if (nullptr == m_vaAllocator) mfx_res = MFX_ERR_MEMORY_ALLOC;
+                }
                 break;
             default:
                 mfx_res = MFX_ERR_UNKNOWN;
@@ -196,6 +201,12 @@ mfxStatus MfxDevVa::InitMfxSession(MFXVideoSession* session)
     return mfx_res;
 }
 #endif
+
+std::shared_ptr<MfxFrameAllocator> MfxDevVa::GetVaAllocator()
+{
+    MFX_DEBUG_TRACE_FUNC;
+    return m_vaAllocator;
+}
 
 std::shared_ptr<MfxFrameAllocator> MfxDevVa::GetFrameAllocator()
 {

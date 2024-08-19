@@ -202,11 +202,9 @@ MfxC2EncoderComponent::MfxC2EncoderComponent(const C2String name, const CreateCo
         m_encSrfPool(nullptr),
         m_encOutBuf(nullptr),
         m_encSrfNum(MFX_MAX_SURFACE_NUM),
-        m_bVppDetermined(false),
-        m_inputVppType(CONVERT_NONE)
+        m_bVppDetermined(false)
 {
     MFX_DEBUG_TRACE_FUNC;
-    MFX_DEBUG_TRACE_U32(m_inputVppType);
 
     const unsigned int SINGLE_STREAM_ID = 0u;
     uint32_t MIN_W = 176;
@@ -1080,10 +1078,8 @@ mfxStatus MfxC2EncoderComponent::InitVPP(C2FrameData& buf_pack)
         param.frame_info = &frame_info;
         param.frame_info->FourCC = MFX_FOURCC_RGB4;
         param.allocator = m_device->GetFrameAllocator();
-        param.conversion = ARGB_TO_NV12;
 
-        mfx_res = m_vpp.Init(&param);
-        m_inputVppType = param.conversion;
+        mfx_res = m_vpp.Init(&param, ARGB_TO_NV12);
     }
         break;
     case C2PlanarLayout::TYPE_YUV: {
@@ -1124,8 +1120,6 @@ mfxStatus MfxC2EncoderComponent::InitVPP(C2FrameData& buf_pack)
             if (MFX_ERR_NONE != mfx_res) MFX_DEBUG_TRACE_MSG("AllocateSurfacePool failed");
 
         }
-
-        m_inputVppType = CONVERT_NONE;
     }
         break;
     default:
@@ -1399,7 +1393,7 @@ void MfxC2EncoderComponent::DoWork(std::unique_ptr<C2Work>&& work)
                 break;
             }
 
-            if (m_inputVppType != CONVERT_NONE) {
+            if (m_vpp.GetConversion() != CONVERT_NONE) {
                 InitMfxFrameHW(input.ordinal.timestamp.peeku(), input.ordinal.frameIndex.peeku(),
                     mem_id, c_graph_block->width(), c_graph_block->height(), MFX_FOURCC_RGB4,
                     m_mfxVideoParamsConfig.mfx.FrameInfo, unique_mfx_frame.get());

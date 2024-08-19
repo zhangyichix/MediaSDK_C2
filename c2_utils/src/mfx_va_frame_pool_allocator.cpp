@@ -176,7 +176,7 @@ mfxStatus MfxVaFramePoolAllocator::AllocFrames(mfxFrameAllocRequest *request,
                 mfx_res = MFX_ERR_MEMORY_ALLOC;
             }
         } while(false);
-    } else {
+    } else { // ???
         mfx_res = AllocFrames(request, response);
     }
 

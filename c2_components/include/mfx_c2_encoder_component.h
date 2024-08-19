@@ -213,7 +213,6 @@ private:
     // VPP used to convert color format which MSDK accepted.
     bool m_bVppDetermined;
     MfxC2VppWrapp m_vpp;
-    MfxC2Conversion m_inputVppType;
 
     mfxExtVideoSignalInfo m_signalInfo;
 

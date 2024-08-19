@@ -40,6 +40,7 @@ public:
 private:
     mfxStatus Init() override;
     mfxStatus Close() override;
+    std::shared_ptr<MfxFrameAllocator> GetVaAllocator() override;
     std::shared_ptr<MfxFrameAllocator> GetFrameAllocator() override;
     std::shared_ptr<MfxFrameConverter> GetFrameConverter() override;
     std::shared_ptr<MfxFramePoolAllocator> GetFramePoolAllocator() override;

@@ -1174,23 +1174,6 @@ mfxStatus MfxC2DecoderComponent::InitDecoder(std::shared_ptr<C2BlockPool> c2_all
 
         m_mfxVideoParams.mfx.FrameInfo.Width = MFX_MEM_ALIGN(m_mfxVideoParams.mfx.FrameInfo.Width, 16);
         m_mfxVideoParams.mfx.FrameInfo.Height = MFX_MEM_ALIGN(m_mfxVideoParams.mfx.FrameInfo.Height, 16);
-        // Google requires the component to decode to 8-bit color format by default.
-        // Reference CTS cases testDefaultOutputColorFormat.
-        MFX_DEBUG_TRACE_I32(m_pixelFormat->value);
-        if (HAL_PIXEL_FORMAT_YCBCR_420_888 == m_pixelFormat->value && MFX_FOURCC_P010 == m_mfxVideoParams.mfx.FrameInfo.FourCC) {
-            MFX_DEBUG_TRACE_MSG("force change from 10-bit to 8-bit");
-            m_mfxVideoParams.mfx.FrameInfo.FourCC = MFX_FOURCC_NV12;
-            m_mfxVideoParams.mfx.FrameInfo.ChromaFormat = MFX_CHROMAFORMAT_YUV420;
-            m_mfxVideoParams.mfx.FrameInfo.BitDepthLuma = 8;
-            m_mfxVideoParams.mfx.FrameInfo.BitDepthChroma = 8;
-            m_mfxVideoParams.mfx.FrameInfo.Shift = 0;
-            if (m_decoderType == DECODER_H265) {
-                m_mfxVideoParams.mfx.CodecProfile = MFX_PROFILE_HEVC_MAIN;
-            }
-            if (m_decoderType == DECODER_VP9) {
-                m_mfxVideoParams.mfx.CodecProfile = MFX_PROFILE_VP9_0;
-            }
-        }
 
         MFX_DEBUG_TRACE_I32(m_mfxVideoParams.mfx.FrameInfo.FourCC);
         if (MFX_ERR_NONE == mfx_res) {
@@ -1234,6 +1217,7 @@ mfxStatus MfxC2DecoderComponent::InitDecoder(std::shared_ptr<C2BlockPool> c2_all
     }
 
     if (MFX_ERR_NONE == mfx_res && m_mfxVideoParams.IOPattern == MFX_IOPATTERN_OUT_SYSTEM_MEMORY) {
+        MFX_DEBUG_TRACE_MSG("zyc, SetFrameAllocator null");
 #ifdef USE_ONEVPL
         mfx_res = MFXVideoCORE_SetFrameAllocator(m_mfxSession, nullptr);
 #else
@@ -1295,6 +1279,41 @@ mfxStatus MfxC2DecoderComponent::InitDecoder(std::shared_ptr<C2BlockPool> c2_all
     if (MFX_ERR_NONE != mfx_res) {
         FreeDecoder();
     }
+
+    mfx_res = InitVPP();
+
+    MFX_DEBUG_TRACE__mfxStatus(mfx_res);
+    return mfx_res;
+}
+
+mfxStatus MfxC2DecoderComponent::InitVPP()
+{
+    MFX_DEBUG_TRACE_FUNC;
+    mfxStatus mfx_res = MFX_ERR_NONE;
+    MfxC2VppWrappParam param;
+#ifdef USE_ONEVPL
+    param.session = m_mfxSession;
+#else
+    param.session = &m_mfxSession;
+#endif
+    param.videoMemory = m_mfxVideoParams.IOPattern == MFX_IOPATTERN_OUT_VIDEO_MEMORY ? true : false;
+    param.frame_info = &m_mfxVideoParams.mfx.FrameInfo;
+    if (param.videoMemory)
+        param.allocator = m_device->GetFrameAllocator();
+    else
+        param.allocator = m_device->GetVaAllocator();
+    
+    param.converter = m_device->GetFrameConverter();
+    // Google requires the component to decode to 8-bit color format by default.
+    // Reference CTS cases testDefaultOutputColorFormat.
+    MFX_DEBUG_TRACE_I32(m_pixelFormat->value);
+    if (HAL_PIXEL_FORMAT_YCBCR_420_888 == m_pixelFormat->value && MFX_FOURCC_P010 == m_mfxVideoParams.mfx.FrameInfo.FourCC) {
+        m_vpp.Init(&param, P010_TO_NV12);
+    } else {
+        m_vpp.Init(&param, CONVERT_NONE);
+    }
+    if (m_c2Allocator)
+        m_vpp.SetC2Allocator(m_c2Allocator);
 
     MFX_DEBUG_TRACE__mfxStatus(mfx_res);
     return mfx_res;
@@ -2293,6 +2312,16 @@ void MfxC2DecoderComponent::WaitWork(MfxC2FrameOut&& frame_out, mfxSyncPoint syn
     MFX_DEBUG_TRACE_I32(m_mfxVideoParams.mfx.FrameInfo.CropW);
     MFX_DEBUG_TRACE_I32(m_mfxVideoParams.mfx.FrameInfo.CropH);
 
+    mfxFrameSurface1* pSurfaceToVpp = nullptr;
+    if (m_vpp.GetConversion() != CONVERT_NONE) {
+        mfxStatus mfx_res = m_vpp.ProcessFrameVpp(mfx_surface.get(), &pSurfaceToVpp);
+        if (MFX_ERR_NONE != mfx_res || nullptr == pSurfaceToVpp) {
+            MFX_DEBUG_TRACE_MSG("ProcessFrameVpp failed");
+            MFX_DEBUG_TRACE__mfxStatus(mfx_res);
+            res = MfxStatusToC2(mfx_res);
+        }
+    }
+
     decltype(C2WorkOrdinalStruct::timestamp) ready_timestamp{mfx_surface->Data.TimeStamp};
 
     std::unique_ptr<C2Work> work;
@@ -2362,6 +2391,10 @@ void MfxC2DecoderComponent::WaitWork(MfxC2FrameOut&& frame_out, mfxSyncPoint syn
             // if output is still locked, return it back to m_lockedSurfaces
             std::lock_guard<std::mutex> lock(m_lockedSurfacesMutex);
             m_lockedSurfaces.push_back(frame_out);
+        }
+
+        if (pSurfaceToVpp) {
+            mfx_surface.reset(pSurfaceToVpp);
         }
 
         if (work) {
